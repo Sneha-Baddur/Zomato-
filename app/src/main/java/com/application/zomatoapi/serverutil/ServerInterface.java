@@ -2,15 +2,12 @@ package com.application.zomatoapi.serverutil;
 
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.application.zomatoapi.MainActivity;
@@ -33,6 +30,9 @@ public class ServerInterface {
     private static final String TAG = ServerInterface.class.getCanonicalName();
     private MainActivity.ServerResponse serverResponse;
     private RestaurantActivity.ServerResponse reviewServerResponse;
+    double lat;
+    double lon;
+
     public ServerInterface() {
     }
 
@@ -44,44 +44,12 @@ public class ServerInterface {
         this.serverResponse = serverResponse;
     }
 
-    public static void getRestaurantLists(final Context context) {
-        String url = "https://developers.zomato.com/api/v2.1/search?lat=13.0229&lon=77.6405&radius=2000";
-        JsonObjectRequest req = new JsonObjectRequest(Request.Method.GET, url,
-                null, new Response.Listener<JSONObject>() {
-
-            @Override
-            public void onResponse(JSONObject response) {
-                Log.d(TAG, response.toString());
-
-                try {
-                    JSONArray restaurantList = response.getJSONArray("restaurants");
-                    String name = restaurantList.getJSONObject(0).getString("name");
-                    Toast.makeText(context, name, Toast.LENGTH_SHORT).show();
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                VolleyLog.d("Error", "Error: " + error.getMessage());
-                Toast.makeText(context, "" + error.getMessage(), Toast.LENGTH_SHORT).show();
-
-            }
-        }) {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                Map<String, String> params = new HashMap<String, String>();
-                params.put("user-key", Constants.ZOMATO_API);
-                return params;
-            }
-        };
-    }
-
-    public void getRestaurantList(final Context context) {
+    public void getRestaurantList(final Context context, double lat, double lon) {
         RequestQueue queue = Volley.newRequestQueue(context);
         final List<Restaurant> resList = new ArrayList<>();
-        String url = "https://developers.zomato.com/api/v2.1/search?lat=13.0229&lon=77.6405&radius=2000";
+        String url = "https://developers.zomato.com/api/v2.1/search?lat=" +
+                lat + "&lon=" +
+                lon + "&radius=2000";
         StringRequest getRequest = new StringRequest(Request.Method.GET, url,
                 new Response.Listener<String>() {
                     @Override

@@ -1,33 +1,25 @@
 package com.application.zomatoapi;
 
-import android.Manifest;
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Rect;
-import android.location.Criteria;
-import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Looper;
-import android.provider.Settings;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.application.zomatoapi.adapter.RestaurantAdapter;
+import com.application.zomatoapi.serverutil.GpsTracker;
 import com.application.zomatoapi.serverutil.ServerInterface;
 import com.bumptech.glide.Glide;
 
@@ -42,6 +34,10 @@ public class MainActivity extends AppCompatActivity {
     LocationManager locationManager;
     String latitude, longitude;
     private ServerInterface serverInterface;
+    public double lat;
+    public double lon;
+    private GpsTracker gpsTracker;
+    private TextView tvLatitude,tvLongitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
 //        setSupportActionBar(toolbar);
 
 //        initCollapsingToolbar();
+
 
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
 
@@ -79,24 +76,29 @@ public class MainActivity extends AppCompatActivity {
 //        }
         serverInterface = new ServerInterface();
         serverInterface.setServerResponse(serverResponse);
-        serverInterface.getRestaurantList(MainActivity.this);
+        try {
+            if (ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ) {
+                ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 101);
+            }else
+            {
+                getLocation();
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
-    private void OnGPS() {
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Enable GPS").setCancelable(false).setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-            }
-        }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-        final AlertDialog alertDialog = builder.create();
-        alertDialog.show();
+    public void getLocation(){
+        gpsTracker = new GpsTracker(MainActivity.this);
+        if(gpsTracker.canGetLocation()){
+            double latitude = gpsTracker.getLatitude();
+            double longitude = gpsTracker.getLongitude();
+            lat = latitude;
+            lon = longitude;
+            serverInterface.getRestaurantList(MainActivity.this, lat, lon);
+        }else{
+            gpsTracker.showSettingsAlert();
+        }
     }
 
     public interface ServerResponse {
@@ -118,99 +120,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(MainActivity.this, error, Toast.LENGTH_SHORT).show();
         }
     };
-    private static final int REQUEST_LOCATION = 1;
 
-    private void getLocation() {
-        final LocationListener locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-//                mlocation = location;
-                Log.d("Location Changes", location.toString());
-//                latitude.setText(String.valueOf(location.getLatitude()));
-//                longitude.setText(String.valueOf(location.getLongitude()));
-                Toast.makeText(MainActivity.this, "Your Location: " + "\n" + "Latitude: " + latitude + "\n" + "Longitude: " + longitude, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-                Log.d("Status Changed", String.valueOf(status));
-            }
-
-            @Override
-            public void onProviderEnabled(String provider) {
-                Log.d("Provider Enabled", provider);
-            }
-
-            @Override
-            public void onProviderDisabled(String provider) {
-                Log.d("Provider Disabled", provider);
-            }
-        };
-
-        // Now first make a criteria with your requirements
-        // this is done to save the battery life of the device
-        // there are various other other criteria you can search for..
-        Criteria criteria = new Criteria();
-        criteria.setAccuracy(Criteria.ACCURACY_COARSE);
-        criteria.setPowerRequirement(Criteria.POWER_LOW);
-        criteria.setAltitudeRequired(false);
-        criteria.setBearingRequired(false);
-        criteria.setSpeedRequired(false);
-        criteria.setCostAllowed(true);
-        criteria.setHorizontalAccuracy(Criteria.ACCURACY_HIGH);
-        criteria.setVerticalAccuracy(Criteria.ACCURACY_HIGH);
-
-        // Now create a location manager
-        final LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-
-        // This is the Best And IMPORTANT part
-        final Looper looper = null;
-
-        if (ActivityCompat.checkSelfPermission(
-                MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
-        } else {
-            locationManager.requestSingleUpdate(criteria, locationListener, looper);
-//            Location locationGPS = getLastKnownLocation();//locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//            if (locationGPS != null) {
-//                double lat = locationGPS.getLatitude();
-//                double longi = locationGPS.getLongitude();
-//                latitude = String.valueOf(lat);
-//                longitude = String.valueOf(longi);
-//                Toast.makeText(this, "Your Location: " + "\n" + "Latitude: " + latitude + "\n" + "Longitude: " + longitude, Toast.LENGTH_SHORT).show();
-//            } else {
-//                Toast.makeText(this, "Unable to find location.", Toast.LENGTH_SHORT).show();
-//            }
-        }
-    }
-
-    private Location getLastKnownLocation() {
-        locationManager = (LocationManager) getApplicationContext().getSystemService(LOCATION_SERVICE);
-        List<String> providers = locationManager.getProviders(true);
-        Location bestLocation = null;
-        for (String provider : providers) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return null;
-            }
-            Location l = locationManager.getLastKnownLocation(provider);
-            if (l == null) {
-                continue;
-            }
-            if (bestLocation == null || l.getAccuracy() < bestLocation.getAccuracy()) {
-                // Found best last known location: %s", l);
-                bestLocation = l;
-            }
-        }
-        return bestLocation;
-    }
     /**
      * Initializing collapsing toolbar
      * Will show and hide the toolbar title on scroll
